@@ -104,3 +104,23 @@ export async function setNewLinkState(
 export async function clearNewLinkState(db: D1Database, lineUserId: string): Promise<void> {
   await db.prepare('DELETE FROM new_link_state WHERE line_user_id = ?').bind(lineUserId).run();
 }
+
+export async function getDelState(db: D1Database, lineUserId: string): Promise<boolean> {
+  const row = await db.prepare('SELECT 1 FROM del_state WHERE line_user_id = ?').bind(lineUserId).first();
+  return row !== null;
+}
+
+export async function setDelState(db: D1Database, lineUserId: string): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO del_state (line_user_id, updated_at)
+       VALUES (?, datetime('now'))
+       ON CONFLICT(line_user_id) DO UPDATE SET updated_at = datetime('now')`,
+    )
+    .bind(lineUserId)
+    .run();
+}
+
+export async function clearDelState(db: D1Database, lineUserId: string): Promise<void> {
+  await db.prepare('DELETE FROM del_state WHERE line_user_id = ?').bind(lineUserId).run();
+}

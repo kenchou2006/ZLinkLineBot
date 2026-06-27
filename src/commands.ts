@@ -1,10 +1,13 @@
 import {
+  clearDelState,
   clearNewLinkState,
   clearSetupState,
   clearUserConfig,
+  getDelState,
   getNewLinkState,
   getSetupState,
   getUserConfig,
+  setDelState,
   setNewLinkState,
   setSetupState,
   setUserConfig,
@@ -14,12 +17,12 @@ import { checkHealth, createLink, deleteLink, findLinkByCode, listLinks, testCon
 
 // Commands that are safe to offer as one-tap quick reply buttons: each works
 // fine sent bare (with no arguments), either running immediately or kicking
-// off the step-by-step prompt flow. /del isn't included since it always
-// requires a short code argument that a button tap can't supply.
+// off a step-by-step prompt flow.
 const QUICK_REPLY_COMMANDS: { pattern: RegExp; item: QuickReplyItem }[] = [
   { pattern: /\/setup\b/i, item: { label: '設定 API', text: '/setup' } },
   { pattern: /\/new\b/i, item: { label: '新增短連結', text: '/new' } },
   { pattern: /\/list\b/i, item: { label: '查詢列表', text: '/list' } },
+  { pattern: /\/del\b/i, item: { label: '刪除短連結', text: '/del' } },
   { pattern: /\/status\b/i, item: { label: '目前設定', text: '/status' } },
   { pattern: /\/reset\b/i, item: { label: '清除設定', text: '/reset' } },
   { pattern: /\/help\b/i, item: { label: '使用說明', text: '/help' } },
@@ -83,7 +86,8 @@ export async function getCancelQuickReply(
 ): Promise<QuickReplyItem[] | undefined> {
   const setupState = await getSetupState(db, lineUserId);
   const newLinkState = await getNewLinkState(db, lineUserId);
-  if (setupState || newLinkState) {
+  const delState = await getDelState(db, lineUserId);
+  if (setupState || newLinkState || delState) {
     return [{ label: '取消', text: '/cancel' }];
   }
   return undefined;
@@ -134,6 +138,14 @@ function isUrl(text: string): boolean {
   }
 }
 
+// /del accepts either a bare short code or a pasted short URL (e.g.
+// https://i.zhiu.dev/abc123) — extract the trailing path segment as the code.
+function extractShortCode(input: string): string {
+  if (!isUrl(input)) return input;
+  const segments = new URL(input).pathname.split('/').filter(Boolean);
+  return segments[segments.length - 1] || input;
+}
+
 export async function handleTextMessage(
   db: D1Database,
   lineUserId: string,
@@ -152,6 +164,9 @@ export async function handleTextMessage(
 
     const newLinkState = await getNewLinkState(db, lineUserId);
     if (newLinkState) return continueNewLink(db, lineUserId, newLinkState, trimmed);
+
+    const delState = await getDelState(db, lineUserId);
+    if (delState) return continueDel(db, lineUserId, trimmed);
   } else if (
     lowerCmd === '/help' ||
     lowerCmd === '/start' ||
@@ -162,6 +177,7 @@ export async function handleTextMessage(
   ) {
     await clearSetupState(db, lineUserId);
     await clearNewLinkState(db, lineUserId);
+    await clearDelState(db, lineUserId);
   }
 
   switch (lowerCmd) {
@@ -194,8 +210,16 @@ export async function handleTextMessage(
       if (rest[0]?.toLowerCase() === 'cancel') {
         return '已取消。';
       }
-      if (!rest.length) return '用法：/del <短代碼> [短代碼2] [短代碼3]…';
-      return buildDelConfirmText(rest);
+      if (!rest.length) {
+        try {
+          await requireConfig(db, lineUserId);
+        } catch (e) {
+          return (e as Error).message;
+        }
+        await setDelState(db, lineUserId);
+        return '請輸入要刪除的短代碼（可一次輸入多個，用空白分隔）：';
+      }
+      return buildDelConfirmText(rest.map(extractShortCode));
     case '/help':
     case '/start':
       return HELP_TEXT;
@@ -314,6 +338,13 @@ async function handleNew(db: D1Database, lineUserId: string, args: string[]): Pr
 // code, skipping the alias prompt that the explicit /new flow asks for.
 async function handleBareUrl(db: D1Database, lineUserId: string, url: string): Promise<string | string[]> {
   return finishNewLink(db, lineUserId, url, undefined);
+}
+
+async function continueDel(db: D1Database, lineUserId: string, text: string): Promise<string> {
+  await clearDelState(db, lineUserId);
+  const codes = text.trim().split(/\s+/).filter(Boolean).map(extractShortCode);
+  if (!codes.length) return '用法：/del <短代碼> [短代碼2] [短代碼3]…';
+  return buildDelConfirmText(codes);
 }
 
 async function continueNewLink(
