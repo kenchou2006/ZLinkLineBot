@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { handleTextMessage, WELCOME_TEXT } from './commands';
+import { buildQuickReply, handleTextMessage, WELCOME_TEXT } from './commands';
 import { replyText, verifyLineSignature } from './line';
 import type { Bindings, LineEvent, LineWebhookBody } from './types';
 
@@ -34,9 +34,7 @@ app.post('/webhook', async (c) => {
 async function handleEvent(env: Bindings, event: LineEvent): Promise<void> {
   if (event.type === 'follow') {
     if (event.replyToken) {
-      await replyText(env.LINE_CHANNEL_ACCESS_TOKEN, event.replyToken, WELCOME_TEXT, [
-        { label: '開始設定', text: '/setup' },
-      ]);
+      await replyText(env.LINE_CHANNEL_ACCESS_TOKEN, event.replyToken, WELCOME_TEXT, buildQuickReply(WELCOME_TEXT));
     }
     return;
   }
@@ -49,7 +47,7 @@ async function handleEvent(env: Bindings, event: LineEvent): Promise<void> {
   }
 
   const reply = await handleTextMessage(env.DB, userId, event.message.text ?? '');
-  await replyText(env.LINE_CHANNEL_ACCESS_TOKEN, event.replyToken, reply);
+  await replyText(env.LINE_CHANNEL_ACCESS_TOKEN, event.replyToken, reply, buildQuickReply(reply));
 }
 
 export default app;

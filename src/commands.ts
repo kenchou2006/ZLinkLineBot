@@ -9,7 +9,27 @@ import {
   setSetupState,
   setUserConfig,
 } from './db';
+import type { QuickReplyItem } from './line';
 import { checkHealth, createLink, deleteLink, findLinkByCode, listLinks, testConnection, ZLinkApiError } from './zlink';
+
+// Commands that are safe to offer as one-tap quick reply buttons: each works
+// fine sent bare (with no arguments), either running immediately or kicking
+// off the step-by-step prompt flow. /del isn't included since it always
+// requires a short code argument that a button tap can't supply.
+const QUICK_REPLY_COMMANDS: { pattern: RegExp; item: QuickReplyItem }[] = [
+  { pattern: /\/setup\b/i, item: { label: '設定 API', text: '/setup' } },
+  { pattern: /\/new\b/i, item: { label: '新增短連結', text: '/new' } },
+  { pattern: /\/list\b/i, item: { label: '查詢列表', text: '/list' } },
+  { pattern: /\/status\b/i, item: { label: '目前設定', text: '/status' } },
+  { pattern: /\/reset\b/i, item: { label: '清除設定', text: '/reset' } },
+];
+
+/** Scans a reply for mentions of the commands above and returns matching quick reply buttons. */
+export function buildQuickReply(reply: string | string[]): QuickReplyItem[] | undefined {
+  const combined = Array.isArray(reply) ? reply.join('\n') : reply;
+  const items = QUICK_REPLY_COMMANDS.filter(({ pattern }) => pattern.test(combined)).map((c) => c.item);
+  return items.length ? items : undefined;
+}
 
 const HELP_TEXT = `ZLink 短連結機器人
 
