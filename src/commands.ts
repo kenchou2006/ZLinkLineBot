@@ -62,6 +62,20 @@ export async function getCancelQuickReply(
   return undefined;
 }
 
+/**
+ * Decides the quick reply buttons for a reply: commands mentioned in the
+ * text, otherwise a cancel button if a prompt flow is in progress, otherwise
+ * a /help button so no reply is ever left without a next step to tap.
+ */
+export async function resolveQuickReply(
+  db: D1Database,
+  lineUserId: string,
+  reply: string | string[],
+): Promise<QuickReplyItem[]> {
+  const quickReply = buildQuickReply(reply) ?? (await getCancelQuickReply(db, lineUserId));
+  return quickReply ?? [{ label: '使用說明', text: '/help' }];
+}
+
 const HELP_TEXT = `ZLink 短連結機器人
 
 第一次使用請先設定：

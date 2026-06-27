@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { buildQuickReply, getCancelQuickReply, handleTextMessage, WELCOME_TEXT } from './commands';
+import { buildQuickReply, handleTextMessage, resolveQuickReply, WELCOME_TEXT } from './commands';
 import { replyText, verifyLineSignature } from './line';
 import type { Bindings, LineEvent, LineWebhookBody } from './types';
 
@@ -47,7 +47,7 @@ async function handleEvent(env: Bindings, event: LineEvent): Promise<void> {
   }
 
   const reply = await handleTextMessage(env.DB, userId, event.message.text ?? '');
-  const quickReply = buildQuickReply(reply) ?? (await getCancelQuickReply(env.DB, userId));
+  const quickReply = await resolveQuickReply(env.DB, userId, reply);
   await replyText(env.LINE_CHANNEL_ACCESS_TOKEN, event.replyToken, reply, quickReply);
 }
 
