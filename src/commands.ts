@@ -22,6 +22,7 @@ const QUICK_REPLY_COMMANDS: { pattern: RegExp; item: QuickReplyItem }[] = [
   { pattern: /\/list\b/i, item: { label: '查詢列表', text: '/list' } },
   { pattern: /\/status\b/i, item: { label: '目前設定', text: '/status' } },
   { pattern: /\/reset\b/i, item: { label: '清除設定', text: '/reset' } },
+  { pattern: /\/help\b/i, item: { label: '使用說明', text: '/help' } },
 ];
 
 /** Scans a reply for mentions of the commands above and returns matching quick reply buttons. */
