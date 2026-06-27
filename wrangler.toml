@@ -1,0 +1,24 @@
+name = "zlink-line-bot"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# This file intentionally does NOT declare a [[d1_databases]] binding.
+# Each deployment points at its own D1 instance, so that's environment-specific
+# config, not something that belongs in the repo. Bind it yourself instead:
+#
+#   CLI:       wrangler.toml locally, or `wrangler d1 create` + add the block
+#              below to a local/untracked copy before running `wrangler dev`/`deploy`.
+#   Dashboard: Worker > Settings > Bindings > Add binding > D1 database,
+#              with binding name "DB" (must match `Bindings.DB` in src/types.ts).
+#              This binding lives on the Cloudflare side and survives redeploys
+#              even though it's not in this file.
+#
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "zlink-line-bot"
+# database_id = "your-database-id"
+
+# Secrets (set via `wrangler secret put <NAME>`, or Worker > Settings > Variables
+# and Secrets in the dashboard — never committed):
+#   LINE_CHANNEL_SECRET        - LINE Developers Console > Messaging API > Channel secret
+#   LINE_CHANNEL_ACCESS_TOKEN  - LINE Developers Console > Messaging API > Channel access token

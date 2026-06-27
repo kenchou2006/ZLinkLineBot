@@ -1,0 +1,12 @@
+name = "zlink-line-bot"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zlink-line-bot"
+# Any placeholder works for --local dev (Miniflare just uses this as a key
+# for its local sqlite file). For --remote, use the real ID from
+# `wrangler d1 create` or the dashboard.
+database_id = "local-dev"
+migrations_dir = "migrations"
