@@ -25,11 +25,41 @@ const QUICK_REPLY_COMMANDS: { pattern: RegExp; item: QuickReplyItem }[] = [
   { pattern: /\/help\b/i, item: { label: '使用說明', text: '/help' } },
 ];
 
+const RESET_CONFIRM_TEXT = '確定要清除目前的 API 設定嗎？這個動作無法復原。';
+
 /** Scans a reply for mentions of the commands above and returns matching quick reply buttons. */
 export function buildQuickReply(reply: string | string[]): QuickReplyItem[] | undefined {
   const combined = Array.isArray(reply) ? reply.join('\n') : reply;
+
+  // The /reset confirmation prompt gets its own explicit Yes/No buttons
+  // instead of the generic auto-detected ones.
+  if (combined === RESET_CONFIRM_TEXT) {
+    return [
+      { label: '確認清除', text: '/reset confirm' },
+      { label: '取消', text: '/reset cancel' },
+    ];
+  }
+
   const items = QUICK_REPLY_COMMANDS.filter(({ pattern }) => pattern.test(combined)).map((c) => c.item);
   return items.length ? items : undefined;
+}
+
+/**
+ * If the user is mid-way through a /setup or /new prompt flow (the bot is
+ * waiting on their next message), offer a button to back out instead of
+ * requiring them to type /cancel. Call after handleTextMessage so any state
+ * changes from this turn are already reflected.
+ */
+export async function getCancelQuickReply(
+  db: D1Database,
+  lineUserId: string,
+): Promise<QuickReplyItem[] | undefined> {
+  const setupState = await getSetupState(db, lineUserId);
+  const newLinkState = await getNewLinkState(db, lineUserId);
+  if (setupState || newLinkState) {
+    return [{ label: '取消', text: '/cancel' }];
+  }
+  return undefined;
 }
 
 const HELP_TEXT = `ZLink 短連結機器人
@@ -73,7 +103,7 @@ export async function handleTextMessage(
 
   const lowerCmd = cmd.toLowerCase();
   const knownCommands = [
-    '/setup', '/setting', '/status', '/reset', '/new', '/create', '/list', '/del', '/delete', '/help', '/start',
+    '/setup', '/setting', '/status', '/reset', '/new', '/create', '/list', '/del', '/delete', '/help', '/start', '/cancel',
   ];
   if (!knownCommands.includes(lowerCmd)) {
     const setupState = await getSetupState(db, lineUserId);
@@ -81,20 +111,28 @@ export async function handleTextMessage(
 
     const newLinkState = await getNewLinkState(db, lineUserId);
     if (newLinkState) return continueNewLink(db, lineUserId, newLinkState, trimmed);
-  } else if (lowerCmd === '/reset' || lowerCmd === '/help' || lowerCmd === '/start') {
+  } else if (lowerCmd === '/help' || lowerCmd === '/start' || lowerCmd === '/cancel' || lowerCmd === '/reset') {
     await clearSetupState(db, lineUserId);
     await clearNewLinkState(db, lineUserId);
   }
 
-  switch (cmd.toLowerCase()) {
+  switch (lowerCmd) {
     case '/setup':
     case '/setting':
       return handleSetup(db, lineUserId, rest);
     case '/status':
       return handleStatus(db, lineUserId);
     case '/reset':
-      await clearUserConfig(db, lineUserId);
-      return '已清除設定。請用 /setup 重新設定 API 網址與金鑰。';
+      if (rest[0]?.toLowerCase() === 'confirm') {
+        await clearUserConfig(db, lineUserId);
+        return '已清除設定。請用 /setup 重新設定 API 網址與金鑰。';
+      }
+      if (rest[0]?.toLowerCase() === 'cancel') {
+        return '已取消。';
+      }
+      return RESET_CONFIRM_TEXT;
+    case '/cancel':
+      return '已取消。';
     case '/new':
     case '/create':
       return handleNew(db, lineUserId, rest);
