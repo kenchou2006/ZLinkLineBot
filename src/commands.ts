@@ -26,6 +26,12 @@ const QUICK_REPLY_COMMANDS: { pattern: RegExp; item: QuickReplyItem }[] = [
 ];
 
 const RESET_CONFIRM_TEXT = '確定要清除目前的 API 設定嗎？這個動作無法復原。';
+const DEL_CONFIRM_PREFIX = '確定要刪除以下短連結嗎？這個動作無法復原：\n';
+const CREATED_LINK_PATTERN = /已建立短連結：\n原始網址：.*\n短代碼：(\S+)/;
+
+function buildDelConfirmText(codes: string[]): string {
+  return `${DEL_CONFIRM_PREFIX}${codes.join(', ')}`;
+}
 
 /** Scans a reply for mentions of the commands above and returns matching quick reply buttons. */
 export function buildQuickReply(reply: string | string[]): QuickReplyItem[] | undefined {
@@ -37,6 +43,27 @@ export function buildQuickReply(reply: string | string[]): QuickReplyItem[] | un
     return [
       { label: '確認清除', text: '/reset confirm' },
       { label: '取消', text: '/reset cancel' },
+    ];
+  }
+
+  // Same for /del's confirmation prompt — extract the codes back out of the
+  // message text so the confirm button knows exactly what to delete.
+  if (combined.startsWith(DEL_CONFIRM_PREFIX)) {
+    const codes = combined.slice(DEL_CONFIRM_PREFIX.length).split(', ');
+    return [
+      { label: '確認刪除', text: `/del confirm ${codes.join(' ')}` },
+      { label: '取消', text: '/del cancel' },
+    ];
+  }
+
+  // Right after creating a short link, offer a one-tap way to delete that
+  // specific link (going through the same confirmation as a typed /del),
+  // alongside the usual help button.
+  const created = combined.match(CREATED_LINK_PATTERN);
+  if (created) {
+    return [
+      { label: '刪除此短連結', text: `/del ${created[1]}` },
+      { label: '使用說明', text: '/help' },
     ];
   }
 
@@ -125,7 +152,14 @@ export async function handleTextMessage(
 
     const newLinkState = await getNewLinkState(db, lineUserId);
     if (newLinkState) return continueNewLink(db, lineUserId, newLinkState, trimmed);
-  } else if (lowerCmd === '/help' || lowerCmd === '/start' || lowerCmd === '/cancel' || lowerCmd === '/reset') {
+  } else if (
+    lowerCmd === '/help' ||
+    lowerCmd === '/start' ||
+    lowerCmd === '/cancel' ||
+    lowerCmd === '/reset' ||
+    lowerCmd === '/del' ||
+    lowerCmd === '/delete'
+  ) {
     await clearSetupState(db, lineUserId);
     await clearNewLinkState(db, lineUserId);
   }
@@ -154,7 +188,14 @@ export async function handleTextMessage(
       return handleList(db, lineUserId, rest.join(' '));
     case '/del':
     case '/delete':
-      return handleDelete(db, lineUserId, rest);
+      if (rest[0]?.toLowerCase() === 'confirm') {
+        return handleDelete(db, lineUserId, rest.slice(1));
+      }
+      if (rest[0]?.toLowerCase() === 'cancel') {
+        return '已取消。';
+      }
+      if (!rest.length) return '用法：/del <短代碼> [短代碼2] [短代碼3]…';
+      return buildDelConfirmText(rest);
     case '/help':
     case '/start':
       return HELP_TEXT;
