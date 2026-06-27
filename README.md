@@ -1,8 +1,9 @@
 # ZLinkLineBot
 
-A LINE Bot for creating and managing [ZLink](../ZLinkAPI) short links from a
-chat. Runs on Cloudflare Workers (via [Hono](https://hono.dev)) with
-Cloudflare D1 for storage — no server to manage.
+A LINE Bot for creating and managing
+[ZLinkAPI](https://github.com/kenchou2006/ZLinkAPI) short links from a chat.
+Runs on Cloudflare Workers (via [Hono](https://hono.dev)) with Cloudflare D1
+for storage — no server to manage.
 
 Each LINE user configures their own ZLink API endpoint and API key with
 `/setup`; the bot stores that per-user, so one deployment can serve many
@@ -14,7 +15,7 @@ people managing different (or the same) ZLink instances.
 2. The signature is verified against `LINE_CHANNEL_SECRET` (HMAC-SHA256).
 3. Text messages are parsed as commands and dispatched to the configured
    ZLink API using the user's stored API key (`X-API-Key` header — see
-   [ZLinkAPI's README](../ZLinkAPI/README.md#managing-links-with-an-api-key)).
+   [ZLinkAPI's README](https://github.com/kenchou2006/ZLinkAPI#managing-links-with-an-api-key)).
 4. The reply is sent back via LINE's reply API.
 
 API key authentication on ZLink is scoped to **links only** (no users, cache,
