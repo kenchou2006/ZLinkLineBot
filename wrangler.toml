@@ -20,11 +20,11 @@ command = "npx wrangler d1 migrations apply zlink-line-bot --remote"
 #              with binding name "DB" (must match `Bindings.DB` in src/types.ts).
 #              This binding lives on the Cloudflare side and survives redeploys
 #              even though it's not in this file.
-#
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "zlink-line-bot"
-# database_id = "your-database-id"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zlink-line-bot"
+database_id = "9fefabb8-95e3-4efd-a4b4-66a1861fdf02"
 
 # Secrets (set via `wrangler secret put <NAME>`, or Worker > Settings > Variables
 # and Secrets in the dashboard — never committed):
