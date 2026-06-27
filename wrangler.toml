@@ -2,6 +2,14 @@ name = "zlink-line-bot"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
+# Runs before `wrangler deploy` (both in Cloudflare's CI build and if you ever
+# run `npm run deploy` manually). Idempotent: only applies migration files
+# that haven't been applied yet, so this is safe to run on every deploy.
+# Does NOT run during `npm run dev`, which uses --config wrangler.local.toml
+# and never touches this file.
+[build]
+command = "npx wrangler d1 migrations apply zlink-line-bot --remote"
+
 # This file intentionally does NOT declare a [[d1_databases]] binding.
 # Each deployment points at its own D1 instance, so that's environment-specific
 # config, not something that belongs in the repo. Bind it yourself instead:
